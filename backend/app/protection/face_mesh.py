@@ -32,4 +32,4 @@ def get_face_landmarks(image):
         y = int(lm.y * h)
         landmarks.append((x, y))
 
-    return landmarks
+    return landmarks 

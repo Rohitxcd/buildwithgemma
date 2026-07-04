@@ -1,54 +1,55 @@
 import cv2
-import numpy as np
 
 from app.protection.face_mesh import get_face_landmarks
+from app.protection.roi import extract_face_roi
+from app.protection.mask import create_face_mask
+from app.protection.frequency import apply_frequency_perturbation
+from app.protection.texture import apply_texture_perturbation
+from app.protection.blender import blend_face_region
+from typing import Any
 
 
 class ProtectionEngine:
 
-    def __init__(self):
-        pass
-
     def apply(self, image):
-
-        h, w, _ = image.shape
 
         landmarks = get_face_landmarks(image)
 
         if not landmarks:
-            return image, {"faces": 0}
+            return image, {
+                "faces": 0
+            }
 
-        protected = image.copy()
+        roi, (x1, y1, x2, y2) = extract_face_roi(
+            image,
+            landmarks
+        )
 
-        xs = [p[0] for p in landmarks]
-        ys = [p[1] for p in landmarks]
+        # Apply transformations
+        protected_roi = apply_frequency_perturbation(roi)
+        protected_roi = apply_texture_perturbation(protected_roi)
 
-        x1, x2 = max(min(xs)-10, 0), min(max(xs)+10, w)
-        y1, y2 = max(min(ys)-10, 0), min(max(ys)+10, h)
+        protected_image = image.copy()
+        protected_image[y1:y2, x1:x2] = protected_roi
 
-        face_roi = protected[y1:y2, x1:x2]
+        # Build full-image mask
+        mask = create_face_mask(image.shape, landmarks)
 
-        # ---- Protection Layer 1: subtle blur ----
-        face_roi = cv2.GaussianBlur(face_roi, (5, 5), 0)
+        # Blend
+        blended = blend_face_region(
+            image,
+            protected_image,
+            mask
+        )
 
-        # ---- Protection Layer 2: frequency noise ----
-        noise = np.random.normal(0, 1.5, face_roi.shape).astype(np.int16)
-        face_roi = np.clip(face_roi.astype(np.int16) + noise, 0, 255).astype(np.uint8)
-
-        # ---- Protection Layer 3: mild sharpening ----
-        kernel = np.array([[0,-1,0],[-1,5,-1],[0,-1,0]])
-        face_roi = cv2.filter2D(face_roi, -1, kernel)
-
-        protected[y1:y2, x1:x2] = face_roi
-
-        metadata = {
+        metadata: dict[str, Any] = {
             "faces": 1,
-            "width": w,
-            "height": h,
+            "width": image.shape[1],
+            "height": image.shape[0],
             "region": [x1, y1, x2, y2]
         }
 
-        return protected, metadata
+        return blended, metadata
 
 
 protection_engine = ProtectionEngine()

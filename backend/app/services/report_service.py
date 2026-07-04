@@ -10,6 +10,9 @@ class ReportService:
             "image_width": metadata["width"],
             "image_height": metadata["height"],
 
+            "face_region": metadata["region"],
+
+            "original_image": metadata["original_image"],
             "protected_image": metadata["protected_image"],
 
             "risk_analysis": gemma_result

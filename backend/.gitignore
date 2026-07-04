@@ -17,3 +17,20 @@ app/reports/
 # OS
 .DS_Store
 Thumbs.db
+
+.venv/
+backend/.venv/
+
+__pycache__/
+*.pyc
+
+.env
+
+node_modules/
+
+.next/
+
+venv/
+
+app/uploads/
+app/protected/

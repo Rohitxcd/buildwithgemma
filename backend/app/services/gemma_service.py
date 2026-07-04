@@ -1,7 +1,11 @@
 import os
+import json
+
 from google import genai
 
-client = genai.Client(api_key=os.getenv("GEMMA_API_KEY"))
+client = genai.Client(
+    api_key=os.getenv("GEMMA_API_KEY")
+)
 
 
 class GemmaService:
@@ -11,16 +15,24 @@ class GemmaService:
         prompt = f"""
 You are an AI Privacy Analyst.
 
-Image Data:
-- Faces: {metadata['faces']}
-- Resolution: {metadata['width']}x{metadata['height']}
+Analyze the following image metadata.
 
-Return ONLY JSON:
+Faces Detected:
+{metadata['faces']}
+
+Resolution:
+{metadata['width']} x {metadata['height']}
+
+Face Region:
+{metadata['region']}
+
+Respond ONLY with valid JSON.
+
 {{
-  "risk_score": int,
-  "risk_level": "Low | Medium | High",
-  "summary": string,
-  "recommendation": string
+    "risk_score": 0,
+    "risk_level": "Low",
+    "summary": "",
+    "recommendation": ""
 }}
 """
 
@@ -29,7 +41,30 @@ Return ONLY JSON:
             contents=prompt
         )
 
-        return response.text
+        text = response.text.strip()
+
+        # Remove Markdown code fences if present
+        if text.startswith("```"):
+            lines = text.splitlines()
+
+            if lines[0].startswith("```"):
+                lines = lines[1:]
+
+            if lines and lines[-1].startswith("```"):
+                lines = lines[:-1]
+
+            text = "\n".join(lines).strip()
+
+        try:
+            return json.loads(text)
+
+        except Exception:
+            return {
+                "risk_score": 75,
+                "risk_level": "Medium",
+                "summary": "Unable to parse Gemma response.",
+                "recommendation": "Review the image manually."
+            }
 
 
 gemma_service = GemmaService()
