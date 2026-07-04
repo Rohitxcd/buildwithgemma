@@ -1,9 +1,9 @@
-import os
 import shutil
 import uuid
-import cv2
+from pathlib import Path
 
-from fastapi import APIRouter, UploadFile, File, HTTPException
+import cv2
+from fastapi import APIRouter, File, HTTPException, UploadFile
 
 from app.protection.protection_engine import protection_engine
 from app.services.gemma_service import gemma_service
@@ -11,86 +11,74 @@ from app.services.report_service import report_service
 
 router = APIRouter(
     prefix="/protect",
-    tags=["Protection"]
+    tags=["Protection"],
 )
 
-UPLOAD_DIR = "app/uploads"
-PROTECTED_DIR = "app/protected"
+APP_DIR = Path(__file__).resolve().parents[1]
+UPLOAD_DIR = APP_DIR / "uploads"
+PROTECTED_DIR = APP_DIR / "protected"
 
-os.makedirs(UPLOAD_DIR, exist_ok=True)
-os.makedirs(PROTECTED_DIR, exist_ok=True)
+UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+PROTECTED_DIR.mkdir(parents=True, exist_ok=True)
 
 
 @router.post("/")
 async def protect_image(file: UploadFile = File(...)):
-
-    # -----------------------------
-    # Validate Upload
-    # -----------------------------
-    if not file.content_type.startswith("image/"):
+    if not file.content_type or not file.content_type.startswith("image/"):
         raise HTTPException(
             status_code=400,
-            detail="Only image files are allowed."
+            detail="Only image files are allowed.",
         )
 
-    # -----------------------------
-    # Save Uploaded Image
-    # -----------------------------
     file_id = uuid.uuid4().hex
+    input_path = UPLOAD_DIR / f"{file_id}.jpg"
 
-    input_path = os.path.join(
-        UPLOAD_DIR,
-        f"{file_id}.jpg"
-    )
-
-    with open(input_path, "wb") as buffer:
+    with input_path.open("wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
 
-    # -----------------------------
-    # Read Image
-    # -----------------------------
-    image = cv2.imread(input_path)
+    image = cv2.imread(str(input_path))
 
     if image is None:
         raise HTTPException(
             status_code=400,
-            detail="Failed to read uploaded image."
+            detail="Failed to read uploaded image.",
         )
 
-    # -----------------------------
-    # Protection Engine
-    # -----------------------------
-    protected_image, metadata = protection_engine.apply(image)
+    before_protection = gemma_service.analyze_image(str(input_path))
+    strategy = before_protection.get("strategy", {})
 
-    # -----------------------------
-    # Save Protected Image
-    # -----------------------------
-    protected_path = os.path.join(
-        PROTECTED_DIR,
-        f"{file_id}.jpg"
+    protected_image, protection_metadata = protection_engine.apply(
+        image,
+        strategy,
     )
 
-    cv2.imwrite(
-        protected_path,
-        protected_image
+    protected_path = PROTECTED_DIR / f"{file_id}.jpg"
+
+    if not cv2.imwrite(str(protected_path), protected_image):
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to save protected image.",
+        )
+
+    after_protection = gemma_service.verify_protection(str(protected_path))
+    strategy_used = protection_metadata.get("strategy", strategy)
+
+    metadata = {
+        "file_id": file_id,
+        "original_filename": file.filename,
+        "content_type": file.content_type,
+        "original_image": str(input_path),
+        "faces_detected": protection_metadata.get("faces", 0),
+        "image_width": protection_metadata.get("width"),
+        "image_height": protection_metadata.get("height"),
+        "face_region": protection_metadata.get("region"),
+        "operations_applied": protection_metadata.get("operations_applied", []),
+    }
+
+    return report_service.generate(
+        before_protection=before_protection,
+        after_protection=after_protection,
+        strategy_used=strategy_used,
+        metadata=metadata,
+        protected_image=str(protected_path),
     )
-
-    metadata["protected_image"] = protected_path
-    metadata["original_image"] = input_path
-
-    # -----------------------------
-    # Gemma Analysis
-    # -----------------------------
-    gemma_result = gemma_service.analyze_image(
-        metadata
-    )
-
-    # -----------------------------
-    # Generate Report
-    # -----------------------------
-    report = report_service.generate(
-        metadata,
-        gemma_result
-    )
-
-    return report

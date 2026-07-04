@@ -1,21 +1,22 @@
+from typing import Any
+
+
 class ReportService:
-
-    def generate(self, metadata, gemma_result):
-
+    def generate(
+        self,
+        before_protection: dict[str, Any],
+        after_protection: dict[str, Any],
+        strategy_used: dict[str, Any],
+        metadata: dict[str, Any],
+        protected_image: str,
+    ) -> dict[str, Any]:
         return {
             "success": True,
-
-            "faces_detected": metadata["faces"],
-
-            "image_width": metadata["width"],
-            "image_height": metadata["height"],
-
-            "face_region": metadata["region"],
-
-            "original_image": metadata["original_image"],
-            "protected_image": metadata["protected_image"],
-
-            "risk_analysis": gemma_result
+            "before_protection": before_protection,
+            "after_protection": after_protection,
+            "strategy_used": strategy_used,
+            "protected_image": protected_image,
+            "metadata": metadata,
         }
 
 
