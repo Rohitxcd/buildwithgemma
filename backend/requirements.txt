@@ -1,0 +1,15 @@
+fastapi
+uvicorn
+
+python-multipart
+
+opencv-python
+numpy
+
+mediapipe
+
+pydantic
+
+google-genai
+
+python-dotenv

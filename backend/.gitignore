@@ -1,0 +1,19 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Virtual environment
+.venv/
+
+# Environment variables
+.env
+
+# Uploaded/generated files
+app/uploads/
+app/protected/
+app/reports/
+
+# OS
+.DS_Store
+Thumbs.db
