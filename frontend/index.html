@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VideoLock AI - Media Privacy Protection</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+  <div class="app-container">
+    <!-- Header -->
+    <header class="app-header">
+      <div class="logo-container">
+        <span class="logo-icon">🔒</span>
+        <h1 class="logo-text">VideoLock<span>AI</span></h1>
+      </div>
+      <p class="tagline">AI-Powered Preventive Media Privacy Protection</p>
+    </header>
+
+    <!-- Main Content -->
+    <main class="main-content">
+      
+      <!-- Upload & Configuration Section -->
+      <section id="upload-section" class="card upload-card">
+        <div class="card-header">
+          <h2>Protect Your Image</h2>
+          <p>Upload a portrait or selfie to analyze privacy risks and apply computer vision protection.</p>
+        </div>
+        
+        <div class="drop-zone" id="drop-zone">
+          <div class="drop-zone-content">
+            <span class="upload-icon">📤</span>
+            <p class="drop-text">Drag and drop your image here, or <span>browse files</span></p>
+            <p class="file-limits">Supports JPG, JPEG, PNG (images only)</p>
+          </div>
+          <input type="file" id="file-input" accept="image/*" style="display: none;">
+        </div>
+
+        <div id="preview-container" class="preview-container hidden">
+          <div class="preview-header">
+            <h3>Selected Image</h3>
+            <button id="remove-btn" class="btn btn-secondary">Remove</button>
+          </div>
+          <div class="image-preview-wrapper">
+            <img id="image-preview" src="" alt="Selected Preview">
+          </div>
+          <button id="process-btn" class="btn btn-primary btn-large">
+            <span>Analyze & Protect with Gemma</span>
+            <span class="btn-shine"></span>
+          </button>
+        </div>
+      </section>
+
+      <!-- Loading / Processing State -->
+      <section id="loading-section" class="card loading-card hidden">
+        <div class="loading-wrapper">
+          <div class="spinner-container">
+            <div class="spinner"></div>
+            <div class="spinner-core">🔒</div>
+          </div>
+          <h2>Processing Media...</h2>
+          <p class="loading-status" id="loading-status">Uploading image...</p>
+          
+          <div class="progress-steps">
+            <div class="step active" id="step-upload">
+              <span class="step-num">1</span>
+              <span class="step-label">Upload Image</span>
+            </div>
+            <div class="step" id="step-analyze">
+              <span class="step-num">2</span>
+              <span class="step-label">Gemma Risk Analysis</span>
+            </div>
+            <div class="step" id="step-protect">
+              <span class="step-num">3</span>
+              <span class="step-label">Applying CV Masks</span>
+            </div>
+            <div class="step" id="step-verify">
+              <span class="step-num">4</span>
+              <span class="step-label">Gemma Verification</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Results / Report Section -->
+      <section id="results-section" class="results-wrapper hidden">
+        
+        <!-- Images Comparison -->
+        <div class="card comparison-card">
+          <div class="card-header">
+            <h2>Media Protection Results</h2>
+            <div class="view-toggle">
+              <button id="btn-side-by-side" class="toggle-btn active">Side by Side</button>
+              <button id="btn-slider" class="toggle-btn">Slider View</button>
+            </div>
+          </div>
+
+          <!-- Comparison Display -->
+          <div class="comparison-display side-by-side" id="comparison-display">
+            <div class="image-box original-box">
+              <span class="image-tag before-tag">Before Protection</span>
+              <img id="original-image" src="" alt="Original Image">
+            </div>
+            <div class="image-box protected-box">
+              <span class="image-tag after-tag">Protected Image</span>
+              <img id="protected-image" src="" alt="Protected Image">
+            </div>
+
+            <!-- Slider Wrapper (Hidden unless toggled) -->
+            <div class="slider-wrapper hidden" id="slider-wrapper">
+              <div class="slider-image-container">
+                <img id="slider-original" src="" alt="Original">
+                <div class="slider-resize" id="slider-resize">
+                  <img id="slider-protected" src="" alt="Protected">
+                </div>
+                <div class="slider-handle" id="slider-handle">
+                  <span class="slider-arrow-left">◀</span>
+                  <span class="slider-line"></span>
+                  <span class="slider-arrow-right">▶</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="action-bar">
+            <button id="new-upload-btn" class="btn btn-secondary">⚡ Upload Another Image</button>
+            <a id="download-btn" href="#" download class="btn btn-primary">💾 Save Protected Image</a>
+          </div>
+        </div>
+
+        <!-- Dashboard Analytics -->
+        <div class="analytics-grid">
+          
+          <!-- Risk Dashboard Card -->
+          <div class="card analytics-card risk-card">
+            <h3>Privacy Risk Level</h3>
+            <div class="risk-gauge-container">
+              <div class="gauge-box">
+                <div class="gauge-circle before" id="gauge-before">
+                  <div class="gauge-value" id="val-before">0%</div>
+                </div>
+                <span class="gauge-label">Before protection</span>
+              </div>
+              <div class="risk-arrow">➔</div>
+              <div class="gauge-box">
+                <div class="gauge-circle after" id="gauge-after">
+                  <div class="gauge-value" id="val-after">0%</div>
+                </div>
+                <span class="gauge-label">After protection</span>
+              </div>
+            </div>
+            <div class="risk-summary-box">
+              <div class="summary-item">
+                <strong>Before:</strong> <span id="summary-before-text">Analyzing...</span>
+              </div>
+              <div class="summary-item">
+                <strong>After:</strong> <span id="summary-after-text">Analyzing...</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Strategy details Card -->
+          <div class="card analytics-card strategy-card">
+            <h3>Applied CV Strategy</h3>
+            <div class="strategy-details-list">
+              <div class="strategy-detail-item" id="detail-landmark">
+                <span class="status-indicator"></span>
+                <div class="detail-info">
+                  <h4>Landmark Perturbation</h4>
+                  <p>Slightly warps facial geometry coordinates to disrupt facial recognition embedding matchers.</p>
+                </div>
+              </div>
+              <div class="strategy-detail-item" id="detail-frequency">
+                <span class="status-indicator"></span>
+                <div class="detail-info">
+                  <h4>Frequency Masking</h4>
+                  <p>Injects invisible high-frequency noise into texture channels to deceive neural network classifiers.</p>
+                </div>
+              </div>
+              <div class="strategy-detail-item" id="detail-texture">
+                <span class="status-indicator"></span>
+                <div class="detail-info">
+                  <h4>Texture Shifting</h4>
+                  <p>Alters fine texture map details to make automated portrait extraction algorithms fail.</p>
+                </div>
+              </div>
+              <div class="strategy-detail-item" id="detail-body">
+                <span class="status-indicator"></span>
+                <div class="detail-info">
+                  <h4>Body Region Protection</h4>
+                  <p>Segments torso/background regions to obscure identifiers like clothes, badges, and location markers.</p>
+                </div>
+              </div>
+            </div>
+            <div class="strategy-strength">
+              <span>Protection Strength:</span>
+              <span id="strength-tag" class="badge">Medium</span>
+            </div>
+          </div>
+
+          <!-- Gemma Verification Card -->
+          <div class="card analytics-card verification-card">
+            <h3>Gemma AI Verification</h3>
+            <div class="verification-checks">
+              <div class="check-item" id="check-identifiable">
+                <span class="check-icon">❓</span>
+                <div class="check-text">
+                  <h4>Face Identifiable</h4>
+                  <p id="txt-identifiable">Yes/No</p>
+                </div>
+              </div>
+              <div class="check-item" id="check-improved">
+                <span class="check-icon">❓</span>
+                <div class="check-text">
+                  <h4>Privacy Improved</h4>
+                  <p id="txt-improved">Yes/No</p>
+                </div>
+              </div>
+            </div>
+            <div class="bullet-list-section">
+              <h4>Risks Identified</h4>
+              <ul id="risks-list" class="report-list">
+                <!-- Populated dynamically -->
+              </ul>
+            </div>
+            <div class="bullet-list-section">
+              <h4>Recommendations</h4>
+              <ul id="recs-list" class="report-list">
+                <!-- Populated dynamically -->
+              </ul>
+            </div>
+          </div>
+
+          <!-- Metadata & Diagnostics Card -->
+          <div class="card analytics-card metadata-card">
+            <h3>Image & Processing Diagnostics</h3>
+            <table class="meta-table">
+              <tr>
+                <td>Original File</td>
+                <td id="meta-filename">-</td>
+              </tr>
+              <tr>
+                <td>Image Dimensions</td>
+                <td id="meta-dims">-</td>
+              </tr>
+              <tr>
+                <td>Faces Detected</td>
+                <td id="meta-faces">-</td>
+              </tr>
+              <tr>
+                <td>Face Bounding Box</td>
+                <td id="meta-face-box">-</td>
+              </tr>
+              <tr>
+                <td>Body Bounding Box</td>
+                <td id="meta-body-box">-</td>
+              </tr>
+              <tr>
+                <td>Body Mask Applied</td>
+                <td id="meta-body-protected">-</td>
+              </tr>
+              <tr>
+                <td>Low-Level CV Pipeline</td>
+                <td>
+                  <div class="pipeline-tags" id="meta-pipeline-tags">
+                    <!-- Populated dynamically -->
+                  </div>
+                </td>
+              </tr>
+            </table>
+          </div>
+        </div>
+      </section>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="app-footer">
+      <p>&copy; 2026 VideoLock AI. Built with FastAPI & Gemma.</p>
+    </footer>
+  </div>
+
+  <script type="module" src="./main.js"></script>
+</body>
+</html>
