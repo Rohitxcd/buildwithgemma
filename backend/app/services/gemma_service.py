@@ -13,7 +13,7 @@ from app.gemma.prompts import (
     build_privacy_analysis_prompt,
 )
 
-GEMMA_MODEL = os.getenv("GEMMA_MODEL", "gemma-4-12b-it")
+GEMMA_MODEL = os.getenv("GEMMA_MODEL", "gemma-4-31b-it")
 VALID_STRENGTHS = {"low", "medium", "high"}
 
 
@@ -22,6 +22,7 @@ def _fallback_strategy() -> dict[str, Any]:
         "landmark_perturbation": True,
         "frequency_mask": True,
         "texture_shift": False,
+        "body_region_protection": True,
         "strength": "medium",
     }
 
@@ -183,6 +184,12 @@ class GemmaService:
                 strategy.get("frequency_mask", fallback["frequency_mask"])
             ),
             "texture_shift": bool(strategy.get("texture_shift", fallback["texture_shift"])),
+            "body_region_protection": bool(
+                strategy.get(
+                    "body_region_protection",
+                    fallback["body_region_protection"],
+                )
+            ),
             "strength": strength,
         }
 

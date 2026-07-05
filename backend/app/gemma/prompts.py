@@ -6,6 +6,7 @@ Analyze the ORIGINAL uploaded image. Do not describe your reasoning outside JSON
 
 Assess:
 - facial visibility
+- body visibility
 - identity exposure
 - identifiable objects
 - ID cards
@@ -22,6 +23,7 @@ Choose a protection strategy using only these tools:
 - landmark_perturbation
 - frequency_mask
 - texture_shift
+- body_region_protection
 
 Allowed strength values:
 - low
@@ -41,6 +43,7 @@ Return ONLY valid JSON with this exact shape:
     "landmark_perturbation": true,
     "frequency_mask": true,
     "texture_shift": false,
+    "body_region_protection": true,
     "strength": "medium"
   }
 }
@@ -56,6 +59,7 @@ Do not describe your reasoning outside JSON.
 
 Answer these questions:
 - Is the face still clearly identifiable?
+- Is the body, clothing, or silhouette still identity-revealing?
 - Are any identifiers still visible?
 - Has privacy improved?
 - What privacy risks remain?

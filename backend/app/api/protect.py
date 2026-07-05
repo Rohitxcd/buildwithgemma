@@ -72,6 +72,8 @@ async def protect_image(file: UploadFile = File(...)):
         "image_width": protection_metadata.get("width"),
         "image_height": protection_metadata.get("height"),
         "face_region": protection_metadata.get("region"),
+        "body_region": protection_metadata.get("body_region"),
+        "body_protected": protection_metadata.get("body_protected", False),
         "operations_applied": protection_metadata.get("operations_applied", []),
     }
 

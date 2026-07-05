@@ -3,6 +3,10 @@ from typing import Any
 import cv2
 import numpy as np
 
+from app.protection.body_segmentation import (
+    bounding_box_from_mask,
+    create_person_mask,
+)
 from app.protection.blender import blend_face_region
 from app.protection.face_mesh import get_face_landmarks
 from app.protection.frequency import apply_frequency_perturbation
@@ -24,76 +28,170 @@ class ProtectionEngine:
         strength_factor = STRENGTH_FACTORS[strength]
 
         landmarks = get_face_landmarks(image)
-
-        if not landmarks:
-            return image, {
-                "faces": 0,
-                "width": image.shape[1],
-                "height": image.shape[0],
-                "region": None,
-                "operations_applied": [],
-                "strategy": normalized_strategy,
-            }
-
-        roi, (x1, y1, x2, y2) = extract_face_roi(
-            image,
-            landmarks,
-        )
-
-        protected_roi = roi.copy()
-        operations_applied = []
-
-        if normalized_strategy["landmark_perturbation"]:
-            protected_roi = self._apply_landmark_perturbation(
-                protected_roi,
-                strength_factor,
-            )
-            operations_applied.append("landmark_perturbation")
-
-        if normalized_strategy["frequency_mask"]:
-            frequency_roi = apply_frequency_perturbation(protected_roi)
-            alpha = min(1.0, 0.45 * strength_factor)
-            protected_roi = cv2.addWeighted(
-                frequency_roi,
-                alpha,
-                protected_roi,
-                1.0 - alpha,
-                0,
-            )
-            operations_applied.append("frequency_mask")
-
-        if normalized_strategy["texture_shift"]:
-            texture_roi = apply_texture_perturbation(protected_roi)
-            alpha = min(1.0, 0.55 * strength_factor)
-            protected_roi = cv2.addWeighted(
-                texture_roi,
-                alpha,
-                protected_roi,
-                1.0 - alpha,
-                0,
-            )
-            operations_applied.append("texture_shift")
-
         protected_image = image.copy()
-        protected_image[y1:y2, x1:x2] = protected_roi
+        operations_applied = []
+        face_region = None
+        face_mask = np.zeros(image.shape[:2], dtype=np.uint8)
+        faces_detected = 0
 
-        mask = create_face_mask(image.shape, landmarks)
-        blended = blend_face_region(
-            image,
-            protected_image,
-            mask,
-        )
+        if landmarks:
+            faces_detected = 1
+            roi, (x1, y1, x2, y2) = extract_face_roi(
+                image,
+                landmarks,
+            )
+            face_region = [x1, y1, x2, y2]
+            protected_roi = self._apply_roi_strategy(
+                roi,
+                normalized_strategy,
+                strength_factor,
+                operations_applied,
+                "face",
+            )
+            face_layer = protected_image.copy()
+            face_layer[y1:y2, x1:x2] = protected_roi
+            face_mask = create_face_mask(image.shape, landmarks)
+            protected_image = blend_face_region(
+                protected_image,
+                face_layer,
+                face_mask,
+            )
+
+        body_region = None
+        body_protected = False
+
+        if normalized_strategy["body_region_protection"]:
+            body_mask = create_person_mask(image)
+            body_mask = self._remove_face_from_body_mask(body_mask, face_mask)
+            body_region = bounding_box_from_mask(body_mask)
+
+            if body_region:
+                body_layer = self._apply_body_strategy(
+                    protected_image,
+                    normalized_strategy,
+                    strength_factor,
+                    operations_applied,
+                )
+                protected_image = blend_face_region(
+                    protected_image,
+                    body_layer,
+                    body_mask,
+                )
+                body_protected = True
 
         metadata: dict[str, Any] = {
-            "faces": 1,
+            "faces": faces_detected,
             "width": image.shape[1],
             "height": image.shape[0],
-            "region": [x1, y1, x2, y2],
+            "region": face_region,
+            "face_region": face_region,
+            "body_region": body_region,
+            "body_protected": body_protected,
             "operations_applied": operations_applied,
             "strategy": normalized_strategy,
         }
 
-        return blended, metadata
+        return protected_image, metadata
+
+    def _apply_roi_strategy(
+        self,
+        roi: np.ndarray,
+        strategy: dict[str, Any],
+        strength_factor: float,
+        operations_applied: list[str],
+        prefix: str,
+    ) -> np.ndarray:
+        protected_roi = roi.copy()
+
+        if strategy["landmark_perturbation"]:
+            protected_roi = self._apply_landmark_perturbation(
+                protected_roi,
+                strength_factor,
+            )
+            operations_applied.append(f"{prefix}_landmark_perturbation")
+
+        if strategy["frequency_mask"]:
+            protected_roi = self._blend_frequency(
+                protected_roi,
+                strength_factor,
+            )
+            operations_applied.append(f"{prefix}_frequency_mask")
+
+        if strategy["texture_shift"]:
+            protected_roi = self._blend_texture(
+                protected_roi,
+                strength_factor,
+            )
+            operations_applied.append(f"{prefix}_texture_shift")
+
+        return protected_roi
+
+    def _apply_body_strategy(
+        self,
+        image: np.ndarray,
+        strategy: dict[str, Any],
+        strength_factor: float,
+        operations_applied: list[str],
+    ) -> np.ndarray:
+        protected = image.copy()
+
+        if strategy["frequency_mask"] or not strategy["texture_shift"]:
+            protected = self._blend_frequency(
+                protected,
+                strength_factor,
+            )
+            operations_applied.append("body_frequency_mask")
+
+        if strategy["texture_shift"]:
+            protected = self._blend_texture(
+                protected,
+                strength_factor,
+            )
+            operations_applied.append("body_texture_shift")
+
+        return protected
+
+    def _blend_frequency(
+        self,
+        image: np.ndarray,
+        strength_factor: float,
+    ) -> np.ndarray:
+        frequency_image = apply_frequency_perturbation(image)
+        alpha = min(1.0, 0.45 * strength_factor)
+        return cv2.addWeighted(
+            frequency_image,
+            alpha,
+            image,
+            1.0 - alpha,
+            0,
+        )
+
+    def _blend_texture(
+        self,
+        image: np.ndarray,
+        strength_factor: float,
+    ) -> np.ndarray:
+        texture_image = apply_texture_perturbation(image)
+        alpha = min(1.0, 0.55 * strength_factor)
+        return cv2.addWeighted(
+            texture_image,
+            alpha,
+            image,
+            1.0 - alpha,
+            0,
+        )
+
+    def _remove_face_from_body_mask(
+        self,
+        body_mask: np.ndarray,
+        face_mask: np.ndarray,
+    ) -> np.ndarray:
+        if not np.any(face_mask):
+            return body_mask
+
+        kernel = np.ones((25, 25), dtype=np.uint8)
+        expanded_face_mask = cv2.dilate(face_mask, kernel, iterations=1)
+        return cv2.bitwise_and(body_mask, cv2.bitwise_not(expanded_face_mask))
 
     def _apply_landmark_perturbation(
         self,
@@ -139,6 +237,9 @@ class ProtectionEngine:
             "landmark_perturbation": bool(strategy.get("landmark_perturbation", True)),
             "frequency_mask": bool(strategy.get("frequency_mask", True)),
             "texture_shift": bool(strategy.get("texture_shift", False)),
+            "body_region_protection": bool(
+                strategy.get("body_region_protection", True)
+            ),
             "strength": strength,
         }
 
